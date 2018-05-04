@@ -1,8 +1,0 @@
-<component name="ArtifactManager">
-  <artifact type="war" name="XFService:war">
-    <output-path>$PROJECT_DIR$/out/artifacts/XFService_war</output-path>
-    <root id="archive" name="XFService_war.war">
-      <element id="artifact" artifact-name="XFService:war exploded" />
-    </root>
-  </artifact>
-</component>

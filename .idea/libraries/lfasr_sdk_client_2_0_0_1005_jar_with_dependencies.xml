@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="lfasr-sdk-client-2.0.0.1005-jar-with-dependencies">
-    <CLASSES>
-      <root url="jar://$PROJECT_DIR$/lib/lfasr-sdk-client-2.0.0.1005-jar-with-dependencies.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>
