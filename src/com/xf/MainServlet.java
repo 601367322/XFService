@@ -38,9 +38,10 @@ public class MainServlet {
     private static final String local_file = "...";
     /*
      * 转写类型选择：标准版和电话版分别为：
-     * LfasrType.LFASR_STANDARD_RECORDED_AUDIO 和 LfasrType.LFASR_TELEPHONY_RECORDED_AUDIO
+//     * LfasrType.LFASR_STANDARD_RECORDED_AUDIO 和 LfasrType.LFASR_TELEPHONY_RECORDED_AUDIO
      * */
-    private static final LfasrType type = LfasrType.LFASR_STANDARD_RECORDED_AUDIO;
+//    private static final LfasrType type = LfasrType.LFASR_STANDARD_RECORDED_AUDIO;
+    private static final LfasrType type = LfasrType.LFASR_TELEPHONY_RECORDED_AUDIO;
     // 等待时长（秒）
     private static int sleepSecond = 20;
 
@@ -57,9 +58,16 @@ public class MainServlet {
 
             MultipartFile mFile = file.get(i);
 
-            System.out.println(req.getSession().getServletContext().getRealPath("/"));
-            File root = new File(req.getSession().getServletContext().getRealPath("/"));
-            File fileDir = new File(root, "files");
+            Properties properties = new Properties();
+            // 使用ClassLoader加载properties配置文件生成对应的输入流
+            InputStream in = MainServlet.class.getClassLoader().getResourceAsStream("config.properties");
+            // 使用properties对象加载输入流
+            properties.load(in);
+
+            File fileDir = new File(properties.getProperty("file_path"));
+
+            System.out.println(fileDir.getPath());
+
             if (!fileDir.exists()) {
                 fileDir.mkdirs();
             }
@@ -174,7 +182,7 @@ public class MainServlet {
                                 // 客户端可根据实际情况选择：
                                 // 1. 客户端循环重试获取进度
                                 // 2. 退出程序，反馈问题
-                                continue;
+                                break;
                             } else {
                                 ProgressStatus progressStatus = JSON.parseObject(progressMsg.getData(), ProgressStatus.class);
                                 if (progressStatus.getStatus() == 9) {
@@ -207,14 +215,20 @@ public class MainServlet {
                             JSONArray array = JSONArray.parseArray(resultMsg.getData());
                             StringBuilder builder = new StringBuilder();
                             StringBuilder builder1 = new StringBuilder();
+                            String speaker = "";
                             for (int i = 0; i < array.size(); i++) {
                                 JSONObject obj = array.getJSONObject(i);
                                 String startTime = turnTime(obj.getInteger("bg") / 1000);
                                 String endTime = turnTime(obj.getInteger("ed") / 1000);
                                 String text = obj.getString("onebest");
-                                builder.append(startTime + " - " + endTime + "\t" + text + "\n");
+                                if (type == LfasrType.LFASR_TELEPHONY_RECORDED_AUDIO) {
+                                    String speaker1 = obj.getString("speaker");
+                                    builder1.append((!speaker1.equals(speaker) ? (i > 0 ? "\n" : "") + speaker1 + "\t" : "") + text);
+                                    speaker = speaker1;
+                                } else {
+                                    builder1.append(text);
+                                }
 
-                                builder1.append(text);
                             }
 //                        writeToFile(new File(taskFileDir, contextFileName).getPath(), builder.toString());
                             writeToFile(new File(taskFileDir, taskFileDir.getName() + ".txt").getPath(), builder1.toString());
@@ -238,13 +252,18 @@ public class MainServlet {
 
     @RequestMapping(value = "/history")
     public ModelAndView history(HttpServletRequest req) throws Exception {
-        File root = new File(req.getSession().getServletContext().getRealPath("/"));
-        File fileDir = new File(root, "files");
+        Properties properties = new Properties();
+        // 使用ClassLoader加载properties配置文件生成对应的输入流
+        InputStream in = MainServlet.class.getClassLoader().getResourceAsStream("config.properties");
+        // 使用properties对象加载输入流
+        properties.load(in);
+
+        File fileDir = new File(properties.getProperty("file_path"));
         if (!fileDir.exists()) {
             fileDir.mkdirs();
         }
         List<String> files = orderByDate(fileDir.getPath());
-        Map<String, Boolean> map = new HashMap<>();
+        LinkedHashMap<String, Boolean> map = new LinkedHashMap<>();
         for (int i = 0; i < files.size(); i++) {
             if (new File(fileDir, files.get(i) + "/" + files.get(i) + ".txt").exists()) {
                 map.put(files.get(i), true);
@@ -258,8 +277,13 @@ public class MainServlet {
 
     @RequestMapping(value = "/download")
     public ResponseEntity download(@RequestParam String file, HttpServletRequest req) throws Exception {
-        File root = new File(req.getSession().getServletContext().getRealPath("/"));
-        File fileDir = new File(root, "files");
+        Properties properties = new Properties();
+        // 使用ClassLoader加载properties配置文件生成对应的输入流
+        InputStream in = MainServlet.class.getClassLoader().getResourceAsStream("config.properties");
+        // 使用properties对象加载输入流
+        properties.load(in);
+
+        File fileDir = new File(properties.getProperty("file_path"));
         if (!fileDir.exists()) {
             fileDir.mkdirs();
         }
@@ -278,7 +302,17 @@ public class MainServlet {
         File[] fs = file.listFiles();
         Arrays.sort(fs, new Comparator<File>() {
             public int compare(File f1, File f2) {
-                long diff = f1.lastModified() - f2.lastModified();
+
+                File f1Task = new File(f1.getPath(), taskFileName);
+                File f2Task = new File(f2.getPath(), taskFileName);
+                if (!f1Task.exists()) {
+                    f1Task = f1;
+                }
+                if (!f2Task.exists()) {
+                    f2Task = f2;
+                }
+
+                long diff = f2Task.lastModified() - f1Task.lastModified();
                 if (diff > 0)
                     return 1;
                 else if (diff == 0)
@@ -294,7 +328,7 @@ public class MainServlet {
         });
 
         List<String> files = new ArrayList<>();
-        for (int i = fs.length - 1; i > -1; i--) {
+        for (int i = 0; i < fs.length; i++) {
             if (fs[i].isDirectory()) {
                 files.add(fs[i].getName());
             }
@@ -326,18 +360,17 @@ public class MainServlet {
 
 
     public static void writeToFile(String fileName, String content) {
-        FileOutputStream fileOutputStream = null;
         File file = new File(fileName);
 
         try {
             if (file.exists()) {
                 file.createNewFile();
             }
+            OutputStreamWriter oStreamWriter = new OutputStreamWriter(new FileOutputStream(file), "utf-8");
+            oStreamWriter.append(content);
+            oStreamWriter.flush();
+            oStreamWriter.close();
 
-            fileOutputStream = new FileOutputStream(file);
-            fileOutputStream.write(content.getBytes());
-            fileOutputStream.flush();
-            fileOutputStream.close();
         } catch (Exception e) {
             e.printStackTrace();
         }

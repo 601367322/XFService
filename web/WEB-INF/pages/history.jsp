@@ -13,6 +13,10 @@
     <meta http-equiv="refresh" content="5">
     <title>语音转换</title>
 
+    <script type="text/javascript" src="${pageContext.request.contextPath}/static/javascript/jquery.js"></script>
+    <script type="text/javascript" src="${pageContext.request.contextPath}/static/javascript/index.js"></script>
+    <script type="text/javascript" src="${pageContext.request.contextPath}/static/javascript/prefixfree.min.js"></script>
+
     <style type="text/css">
         .title {
             font-size: 20px;

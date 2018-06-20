@@ -13,6 +13,9 @@
     <bean class="org.springframework.web.servlet.view.InternalResourceViewResolver"
           p:prefix="/WEB-INF/pages/" p:suffix=".jsp"/>
 
+    <mvc:resources mapping="/static/**" location="/WEB-INF/static/"/>
+    <mvc:annotation-driven/>
+
     <bean id="multipartResolver"
           class="org.springframework.web.multipart.commons.CommonsMultipartResolver"
           p:defaultEncoding="utf-8"/>
